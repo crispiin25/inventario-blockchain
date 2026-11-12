@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+  :root {
+    --fondo: #f4f5f1; --tinta: #1c2b2d; --suave: #5b6b6d; --linea: #d3d9d4;
+    --panel: #ffffff; --acento: #1d6b66; --acento-t: #ffffff;
+    --ok: #1d6b66; --alerta: #a86a00; --critico: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--tinta);
+    font: 16px/1.5 "Atkinson Hyperlegible", system-ui, sans-serif; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 20px; background: var(--panel); border-bottom: 1px solid var(--linea); flex-wrap: wrap; }
+  h1 { font-size: 1.15rem; margin: 0; }
+  nav { display: flex; gap: 6px; }
+  nav button { font: inherit; padding: 8px 16px; border: 1px solid var(--linea); background: transparent;
+    color: var(--tinta); border-radius: 6px; cursor: pointer; }
+  nav button[aria-selected="true"] { background: var(--acento); color: var(--acento-t); border-color: var(--acento); }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  h2 { font-size: 1.25rem; margin: 0 0 16px; }
+  .vista[hidden] { display: none; }
+  .opciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .opcion { font: inherit; text-align: left; padding: 14px; background: var(--panel); color: var(--tinta);
+    border: 1px solid var(--linea); border-radius: 8px; cursor: pointer; min-height: 52px; }
+  .opcion:hover { border-color: var(--acento); }
+  .grande { padding: 22px 16px; font-size: 1.15rem; font-weight: 700; }
+  .opcion[aria-pressed="true"] { border: 2px solid var(--acento); background: #e6f1ef; padding: 13px; }
+  .grande[aria-pressed="true"] { padding: 21px 15px; }
+  .paso { margin-bottom: 24px; }
+  .paso h3 { font-size: 1rem; margin: 0 0 8px; color: var(--suave); font-weight: 700; }
+  input[type=text] { font: inherit; padding: 10px 12px; border: 1px solid var(--linea); border-radius: 6px;
+    width: 100%; max-width: 320px; margin-top: 10px; }
+  .enviar { font: inherit; font-weight: 700; padding: 14px 28px; background: var(--acento); color: var(--acento-t);
+    border: 0; border-radius: 8px; cursor: pointer; }
+  .enviar:disabled { opacity: .45; cursor: not-allowed; }
+  .aviso { margin-top: 16px; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--linea); background: var(--panel); }
+  .aviso.bien { border-color: var(--ok); }
+  .aviso.mal { border-color: var(--critico); color: var(--critico); }
+  .banner { padding: 14px 16px; border-radius: 8px; border-left: 6px solid var(--ok); background: var(--panel); margin-bottom: 20px; }
+  .banner.ALERTA_NODO { border-color: var(--alerta); }
+  .banner.CRITICO { border-color: var(--critico); }
+  .banner strong { display: block; font-size: 1.05rem; }
+  .nodos { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 28px; }
+  .nodo { background: var(--panel); border: 1px solid var(--linea); border-top: 4px solid var(--ok); border-radius: 8px; padding: 12px; }
+  .nodo.DESINCRONIZADO { border-top-color: var(--alerta); }
+  .nodo.INACCESIBLE { border-top-color: var(--critico); }
+  .nodo b { display: block; }
+  .nodo small { color: var(--suave); }
+  .equipos { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .equipo { background: var(--panel); border: 1px solid var(--linea); border-radius: 8px; padding: 14px; }
+  .equipo b { display: block; font-size: 1.05rem; margin-bottom: 4px; }
+  .equipo span { display: block; color: var(--suave); word-break: break-all; }
+  .vacio { color: var(--suave); }
+  .pie { color: var(--suave); font-size: .875rem; margin-top: 18px; }
+  :focus-visible { outline: 3px solid #e0a100; outline-offset: 2px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Sistema de Trazabilidad</h1>
+  <nav role="tablist">
+    <button role="tab" id="tab-registrar" aria-selected="true">Registrar</button>
+    <button role="tab" id="tab-monitor" aria-selected="false">Monitor de estado</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ============ REGISTRAR ============ -->
+  <section id="vista-registrar" class="vista">
+    <h2>Registrar retiro o devolución</h2>
+
+    <div class="paso">
+      <h3>¿Qué querés hacer?</h3>
+      <div class="opciones" id="acciones"></div>
+    </div>
+
+    <div class="paso" id="paso-equipo" hidden>
+      <h3>¿Qué llave o equipo?</h3>
+      <div class="opciones" id="equipos"></div>
+      <input type="text" id="numero" maxlength="40" placeholder="Número de netbook, ej. 1220" hidden aria-label="Número de netbook">
+    </div>
+
+    <div class="paso" id="paso-ubicacion" hidden>
+      <h3>¿En qué lugar?</h3>
+      <div class="opciones" id="ubicaciones"></div>
+    </div>
+
+    <button class="enviar" id="enviar" disabled>Registrar</button>
+    <div id="aviso" class="aviso" role="status" aria-live="polite" hidden></div>
+  </section>
+
+  <!-- ============ MONITOR ============ -->
+  <section id="vista-monitor" class="vista" hidden>
+    <h2>Monitor de estado</h2>
+    <div id="banner" class="banner" role="status" aria-live="polite">Consultando los nodos…</div>
+    <div class="nodos" id="nodos"></div>
+    <h2>Equipos en uso</h2>
+    <div class="equipos" id="en-uso"></div>
+    <p class="pie" id="pie"></p>
+  </section>
+</main>
+
+<script>
+(function () {
+  var estado = { accion: null, equipo: null, ubicacion: null, iniciando: false };
+  var timer = null;
+  var $ = function (id) { return document.getElementById(id); };
+
+  function el(tag, texto, clase) {
+    var e = document.createElement(tag);
+    if (texto !== undefined) e.textContent = texto;   // textContent: nunca innerHTML con datos de planillas
+    if (clase) e.className = clase;
+    return e;
+  }
+
+  /* ---------- Pestañas ---------- */
+  function mostrar(vista) {
+    var monitor = vista === 'monitor';
+    $('vista-registrar').hidden = monitor;
+    $('vista-monitor').hidden = !monitor;
+    $('tab-registrar').setAttribute('aria-selected', String(!monitor));
+    $('tab-monitor').setAttribute('aria-selected', String(monitor));
+    clearInterval(timer);
+    if (monitor) { actualizarMonitor(); timer = setInterval(actualizarMonitor, 10000); }
+  }
+  $('tab-registrar').onclick = function () { mostrar('registrar'); };
+  $('tab-monitor').onclick = function () { mostrar('monitor'); };
+
+  /* ---------- Registrar ---------- */
+  function crearOpciones(contenedor, lista, clave, grande) {
+    var cont = $(contenedor);
+    cont.textContent = '';
+    lista.forEach(function (valor) {
+      var b = el('button', valor, 'opcion' + (grande ? ' grande' : ''));
+      b.type = 'button';
+      b.setAttribute('aria-pressed', 'false');
+      b.onclick = function () { elegir(contenedor, b, clave, valor); };
+      cont.appendChild(b);
+    });
+  }
+
+  function elegir(contenedor, boton, clave, valor) {
+    Array.prototype.forEach.call($(contenedor).children, function (b) { b.setAttribute('aria-pressed', 'false'); });
+    boton.setAttribute('aria-pressed', 'true');
+
+    if (clave === 'accion') {
+      if (estado.iniciando) return;
+      estado.iniciando = true;
+      estado.accion = null;
+      mostrarAviso('', null);
+      google.script.run
+        .withSuccessHandler(function () {
+          estado.iniciando = false;
+          estado.accion = valor;
+          $('paso-equipo').hidden = false;
+          $('paso-ubicacion').hidden = false;
+          validar();
+        })
+        .withFailureHandler(function (e) {
+          estado.iniciando = false;
+          boton.setAttribute('aria-pressed', 'false');
+          mostrarAviso(e.message, false);
+        })
+        .iniciarOperacion(valor);
+      return;
+    }
+
+    estado[clave] = valor;
+    if (clave === 'equipo') {
+      var esNetbook = valor === 'Netbook';
+      $('numero').hidden = !esNetbook;
+      if (esNetbook) $('numero').focus();
+    }
+    validar();
+  }
+
+  function equipoFinal() {
+    if (estado.equipo !== 'Netbook') return estado.equipo;
+    var n = $('numero').value.replace(/\s+/g, ' ').trim().replace(/^#/, '');
+    return n ? 'Netbook #' + n : 'Netbook';
+  }
+
+  function validar() {
+    $('enviar').disabled = !(estado.accion && estado.equipo && estado.ubicacion);
+  }
+  $('numero').oninput = validar;
+
+  function mostrarAviso(texto, ok) {
+    var a = $('aviso');
+    a.hidden = !texto;
+    a.textContent = texto;
+    a.className = 'aviso' + (ok === true ? ' bien' : ok === false ? ' mal' : '');
+  }
+
+  function reiniciar() {
+    estado = { accion: null, equipo: null, ubicacion: null, iniciando: false };
+    ['acciones', 'equipos', 'ubicaciones'].forEach(function (id) {
+      Array.prototype.forEach.call($(id).children, function (b) { b.setAttribute('aria-pressed', 'false'); });
+    });
+    $('numero').value = '';
+    $('numero').hidden = true;
+    $('paso-equipo').hidden = true;
+    $('paso-ubicacion').hidden = true;
+    validar();
+  }
+
+  $('enviar').onclick = function () {
+    var boton = $('enviar');
+    var accion = estado.accion;
+    boton.disabled = true;
+    boton.textContent = 'Registrando…';
+    google.script.run
+      .withSuccessHandler(function () {
+        boton.textContent = 'Registrar';
+        mostrarAviso(accion === 'RETIRÁS' ? 'Retiro registrado en los 3 nodos.' : 'Devolución registrada en los 3 nodos.', true);
+        reiniciar();
+      })
+      .withFailureHandler(function (e) {
+        boton.textContent = 'Registrar';
+        mostrarAviso(e.message, false);
+        validar();
+      })
+      .registrarOperacion(equipoFinal(), estado.ubicacion);
+  };
+
+  /* ---------- Monitor ---------- */
+  var TITULOS = {
+    OK: 'Todo en orden',
+    ALERTA_NODO: 'Hay un nodo desincronizado',
+    CRITICO: 'Estado crítico: más de un nodo con problemas'
+  };
+
+  function actualizarMonitor() {
+    google.script.run
+      .withSuccessHandler(dibujarMonitor)
+      .withFailureHandler(function (e) {
+        $('banner').className = 'banner CRITICO';
+        $('banner').textContent = 'No se pudo consultar el estado: ' + e.message;
+      })
+      .obtenerEstadoConsolidado();
+  }
+
+  function dibujarMonitor(d) {
+    var banner = $('banner');
+    banner.className = 'banner ' + d.estado;
+    banner.textContent = '';
+    banner.appendChild(el('strong', TITULOS[d.estado] || d.estado));
+    var detalle = d.estado === 'OK'
+      ? 'Los 3 nodos coinciden y sus cadenas de hashes están sanas.'
+      : d.confiable
+        ? 'La información mostrada sale de la mayoría (2 de 3 nodos), así que es confiable.'
+        : 'No hay una mayoría clara. Lo que se muestra puede estar incompleto: avisá al administrador.';
+    banner.appendChild(el('span', detalle));
+
+    var nodos = $('nodos');
+    nodos.textContent = '';
+    d.nodos.forEach(function (n) {
+      var c = el('div', undefined, 'nodo ' + n.estado);
+      c.appendChild(el('b', n.nombre));
+      c.appendChild(el('span', n.estado === 'SINCRONIZADO' ? 'Sincronizado' : n.estado === 'INACCESIBLE' ? 'Inaccesible' : 'Desincronizado'));
+      if (n.detalle) { c.appendChild(document.createElement('br')); c.appendChild(el('small', n.detalle)); }
+      nodos.appendChild(c);
+    });
+
+    var lista = $('en-uso');
+    lista.textContent = '';
+    if (!d.equiposEnUso.length) {
+      lista.appendChild(el('p', 'No hay equipos retirados en este momento.', 'vacio'));
+    }
+    d.equiposEnUso.forEach(function (e) {
+      var t = el('div', undefined, 'equipo');
+      t.appendChild(el('b', e.equipo));
+      t.appendChild(el('span', 'Lugar: ' + e.ubicacion));
+      t.appendChild(el('span', 'Retiró: ' + e.correo));
+      lista.appendChild(t);
+    });
+
+    $('pie').textContent = 'Actualizado a las ' + new Date().toLocaleTimeString('es-AR') + '. Se refresca cada 10 segundos.';
+  }
+
+  /* ---------- Inicio ---------- */
+  google.script.run
+    .withSuccessHandler(function (listas) {
+      crearOpciones('acciones', listas.acciones, 'accion', true);
+      crearOpciones('equipos', listas.equipos, 'equipo', false);
+      crearOpciones('ubicaciones', listas.ubicaciones, 'ubicacion', false);
+    })
+    .withFailureHandler(function (e) { mostrarAviso(e.message, false); })
+    .obtenerListasOficiales();
+})();
+</script>
+ function registrarMovimiento() {
+  // 1. Obtener los valores ingresados por el usuario
+  const datos = {
+    equipo: document.getElementById("selectEquipo").value,
+    accion: document.getElementById("selectAccion").value,
+    ubicacion: document.getElementById("inputUbicacion").value,
+    usuario: document.getElementById("inputUsuario").value
+  };
+
+  // 2. Enviar los datos al motor en Apps Script
+  fetch(API_URL, {
+    method: "POST",
+    mode: "no-cors", // Evita bloqueos de seguridad al enviar desde GitHub Pages
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(datos)
+  })
+  .then(() => {
+    alert("¡Registro enviado con éxito! Sellando Hash en Nodos Alfa, Beta y Gamma.");
+  })
+  .catch(error => {
+    console.error("Error al conectar con la red:", error);
+    alert("Hubo un fallo en la conexión con la red distribuida.");
+  });
+}
+</body>
+https://script.google.com/macros/s/AKfycbwGAL4LoAUZKIkSFjbF-VK0Ik3zdUKgYVp8Mu3kra_yy2Onx3idRZ6DAeW_tIPUW3s/exec
+</html> 
